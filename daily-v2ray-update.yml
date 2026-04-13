@@ -1,0 +1,83 @@
+name: 每日8点自动更新 V2Ray 节点到 index.html
+
+on:
+  schedule:
+    - cron: '0 0 * * *'      # UTC 0点 = 新加坡/香港时间早上8点
+  workflow_dispatch:         # 支持手动测试运行
+
+jobs:
+  update-v2ray:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 调用 Grok API 生成漂亮的 index.html 并覆盖
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+        run: |
+          python3 - << 'EOF'
+          import os
+          import json
+          import urllib.request
+
+          # ================== 配置 ==================
+          API_KEY = os.environ["XAI_API_KEY"]
+          HTML_FILE = "index.html"
+
+          # ================== 让 Grok 生成漂亮 HTML 的提示词 ==================
+          system_prompt = """你是一个专业的 V2Ray 节点采集与前端设计师。
+          1. 使用 web_search 工具，搜索今天（当前日期）最新、可靠、免费的 V2Ray / VLESS / VMess / Trojan / Hysteria2 / TUIC 等订阅链接和配置。
+          优先选择活跃维护的 GitHub 仓库（如 barry-far/V2ray-Config、ebrasha/free-v2ray-public-list、Epodonios/v2ray-configs、Delta-Kronecker/V2ray-Config、MatinGhanbari/v2ray-configs 等）和其他高质量来源。
+          2. 提取有效的订阅链接（base64 或直接链接），并整理成结构化数据。
+          3. 生成一个**现代、美观、深色模式**的完整 index.html 文件：
+             - 使用 Tailwind CSS（通过 CDN）。
+             - 深色背景（#0f172a）、霓虹/蓝紫色强调。
+             - 顶部导航栏 + 标题 + 最后更新时间。
+             - 搜索框（实时过滤节点）。
+             - 卡片式布局，按协议分组（VMess、VLESS、Trojan 等）。
+             - 每个节点显示：备注/国家、协议、订阅链接或配置，一键复制按钮（支持复制单条或整个订阅）。
+             - 底部说明：如何在 v2rayN / v2rayNG / Nekobox 等客户端导入。
+             - 响应式设计，手机友好，添加一些简单的动画。
+             - 只输出**纯净的完整 HTML 代码**（从 <!DOCTYPE html> 开始到 </html> 结束），不要任何额外解释、markdown 或 ```html 标记。
+          """
+
+          user_prompt = f"今天是 {os.popen('date +%Y-%m-%d').read().strip()}，请立即搜索最新可用节点并生成美观的 index.html。"
+
+          # ================== 调用 Grok API ==================
+          url = "https://api.x.ai/v1/chat/completions"
+          headers = {
+              "Authorization": f"Bearer {API_KEY}",
+              "Content-Type": "application/json"
+          }
+          data = {
+              "model": "grok-4.20-reasoning",   # 或换成 grok-4.20-non-reasoning（更快）
+              "messages": [
+                  {"role": "system", "content": system_prompt},
+                  {"role": "user", "content": user_prompt}
+              ],
+              "temperature": 0.4,
+              "max_tokens": 12000,
+              "tools": [{"type": "web_search"}]
+          }
+
+          req = urllib.request.Request(url, data=json.dumps(data).encode(), headers=headers, method="POST")
+          with urllib.request.urlopen(req) as response:
+              result = json.loads(response.read().decode())
+              html_content = result["choices"][0]["message"]["content"].strip()
+
+          # ================== 写入并覆盖 index.html ==================
+          with open(HTML_FILE, "w", encoding="utf-8") as f:
+              f.write(html_content)
+
+          # ================== Git 提交推送 ==================
+          os.system('git config --global user.name "Grok Bot"')
+          os.system('git config --global user.email "grok@bot.com"')
+          os.system(f'git add {HTML_FILE}')
+          commit_msg = f"🤖 Grok 自动更新 V2Ray 节点 - $(date +%Y-%m-%d %H:%M)"
+          os.system(f'git commit -m "{commit_msg}" || echo "没有变化，跳过提交"')
+          os.system('git push')
+
+          print("✅ index.html 已生成并推送成功！")
+          EOF
