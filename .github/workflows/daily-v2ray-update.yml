@@ -1,8 +1,8 @@
-name: 每日8点用 NVIDIA NIM 生成 V2Ray 节点页面
+name: 每日8点用 NVIDIA 生成 V2Ray 节点页面
 
 on:
   schedule:
-    - cron: '0 0 * * *'      # 新加坡/香港时间早上 8 点
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
-      - name: 用 NVIDIA NIM 生成漂亮的 index.html
+      - name: 用 NVIDIA NIM 生成 index.html
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
         run: |
@@ -36,29 +36,21 @@ jobs:
               "Content-Type": "application/json"
           }
 
-          system_prompt = """你是一个专业的 V2Ray 节点采集助手和前端设计师。
-请搜索今天最新可靠的免费 V2Ray / VLESS / VMess / Trojan / Hysteria2 订阅链接。
-生成一个**现代、深色模式、美观**的完整 index.html 文件：
-- 使用 Tailwind CSS CDN
-- 深色背景、卡片布局、搜索框
-- 每个节点有备注、协议、一键复制按钮
-- 响应式设计，手机友好
-- 显示最后更新时间
-只输出**纯净完整的 HTML 代码**（从 <!DOCTYPE html> 开始到 </html> 结束），不要任何解释、markdown 或代码块。"""
+          system_prompt = "你是一个 V2Ray 节点助手。请搜索今天最新可靠的免费 V2Ray / VLESS / VMess / Trojan / Hysteria2 订阅链接，生成一个现代深色美观的完整 index.html 文件（使用 Tailwind CSS CDN）。包含标题、更新时间、搜索框、卡片布局、一键复制按钮。只输出纯 HTML 代码，不要任何解释。"
 
-          user_prompt = f"今天是 {os.popen('date +%Y-%m-%d').read().strip()}，请生成最新美观的 V2Ray 免费节点页面。"
+          user_prompt = "今天是 " + os.popen('date +%Y-%m-%d').read().strip() + "，请生成最新 V2Ray 免费节点页面。"
 
           data = {
-              "model": "nvidia/llama-3.1-nemotron-70b-instruct",   # 强模型，免费额度可用
+              "model": "nvidia/llama-3.1-nemotron-70b-instruct",
               "messages": [
                   {"role": "system", "content": system_prompt},
                   {"role": "user", "content": user_prompt}
               ],
               "temperature": 0.3,
-              "max_tokens": 12000
+              "max_tokens": 10000
           }
 
-          req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
+          req = urllib.request.Request(url, json.dumps(data).encode("utf-8"), headers=headers, method="POST")
 
           with urllib.request.urlopen(req) as response:
               result = json.loads(response.read().decode("utf-8"))
@@ -67,12 +59,11 @@ jobs:
           with open(HTML_FILE, "w", encoding="utf-8") as f:
               f.write(html_content)
 
-          # 自动提交到 GitHub
-          os.system('git config --global user.name "NVIDIA NIM Bot"')
+          os.system('git config --global user.name "NVIDIA Bot"')
           os.system('git config --global user.email "nim@bot.com"')
           os.system(f'git add {HTML_FILE}')
-          os.system(f'git commit -m "🤖 NVIDIA NIM 自动更新 V2Ray 节点 - $(date +%Y-%m-%d)" || echo "无变化"')
+          os.system(f'git commit -m "🤖 NVIDIA 自动更新 V2Ray 节点 - $(date +%Y-%m-%d)" || echo "无变化"')
           os.system('git push')
 
-          print("✅ 使用 NVIDIA NIM 生成 index.html 并推送成功！")
+          print("✅ index.html 已生成并推送成功！")
           EOF
