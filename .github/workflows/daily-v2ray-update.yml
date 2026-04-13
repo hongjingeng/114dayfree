@@ -13,7 +13,7 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
-      - name: 用 NVIDIA NIM 生成 index.html
+      - name: 用 NVIDIA 生成 index.html
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
         run: |
@@ -36,9 +36,10 @@ jobs:
               "Content-Type": "application/json"
           }
 
-          system_prompt = "你是一个 V2Ray 节点助手。请搜索今天最新可靠的免费 V2Ray / VLESS / VMess / Trojan / Hysteria2 订阅链接，生成一个现代深色美观的完整 index.html 文件（使用 Tailwind CSS CDN）。包含标题、更新时间、搜索框、卡片布局、一键复制按钮。只输出纯 HTML 代码，不要任何解释。"
+          # 极简稳定提示词
+          system_prompt = "你是一个前端设计师。请生成一个现代深色美观的完整 index.html 文件，使用 Tailwind CSS CDN。页面标题为 '今日最新 V2Ray 免费节点'，包含搜索框、卡片布局、一键复制按钮、最后更新时间。只输出纯净的 <!DOCTYPE html> ... </html> 完整代码，不要任何解释文字。"
 
-          user_prompt = "今天是 " + os.popen('date +%Y-%m-%d').read().strip() + "，请生成最新 V2Ray 免费节点页面。"
+          user_prompt = "今天日期是 " + os.popen('date +%Y-%m-%d %H:%M').read().strip() + "，生成 V2Ray 节点页面。"
 
           data = {
               "model": "nvidia/llama-3.1-nemotron-70b-instruct",
@@ -46,8 +47,8 @@ jobs:
                   {"role": "system", "content": system_prompt},
                   {"role": "user", "content": user_prompt}
               ],
-              "temperature": 0.3,
-              "max_tokens": 10000
+              "temperature": 0.2,
+              "max_tokens": 8000
           }
 
           req = urllib.request.Request(url, json.dumps(data).encode("utf-8"), headers=headers, method="POST")
@@ -56,14 +57,18 @@ jobs:
               result = json.loads(response.read().decode("utf-8"))
               html_content = result["choices"][0]["message"]["content"].strip()
 
+          # 确保是完整 HTML
+          if not html_content.startswith("<!DOCTYPE"):
+              html_content = "<!DOCTYPE html><html><body><pre>" + html_content + "</pre></body></html>"
+
           with open(HTML_FILE, "w", encoding="utf-8") as f:
               f.write(html_content)
 
           os.system('git config --global user.name "NVIDIA Bot"')
           os.system('git config --global user.email "nim@bot.com"')
           os.system(f'git add {HTML_FILE}')
-          os.system(f'git commit -m "🤖 NVIDIA 自动更新 V2Ray 节点 - $(date +%Y-%m-%d)" || echo "无变化"')
+          os.system(f'git commit -m "🔄 NVIDIA 更新 V2Ray 页面 - $(date +%Y-%m-%d %H:%M)" || echo "文件无变化"')
           os.system('git push')
 
-          print("✅ index.html 已生成并推送成功！")
+          print("✅ index.html 已尝试生成并推送")
           EOF
