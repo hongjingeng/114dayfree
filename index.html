@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日最新 V2Ray / VLESS 免费节点</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #0f172a 0%, #1e2937 100%); }
+        .card { transition: all 0.3s; }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+        .copy-btn { transition: all 0.2s; }
+    </style>
+</head>
+<body class="min-h-screen text-gray-200">
+    <div class="max-w-6xl mx-auto p-6">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-white mb-2">🚀 今日最新 V2Ray 免费节点</h1>
+            <p class="text-gray-400">最后更新: 2026-04-13  |  自动/手动更新均可使用</p>
+        </div>
+
+        <div class="mb-6">
+            <input type="text" id="search" 
+                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-5 py-4 text-lg focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                   placeholder="搜索节点备注、国家或协议...">
+        </div>
+
+        <!-- 这里会放节点卡片，我先给一个示例结构，你可以手动替换订阅链接 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="nodes">
+            <!-- Grok 会在这里填充真实节点 -->
+            <div class="card bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">VLESS</span>
+                    </div>
+                    <button onclick="copyToClipboard(this)" class="copy-btn text-blue-400 hover:text-blue-300">
+                        <i class="fas fa-copy"></i> 复制
+                    </button>
+                </div>
+                <p class="font-medium text-white">示例节点 - 高速 VLESS (新加坡)</p>
+                <p class="text-sm text-gray-400 mt-2 break-all">vless://...（这里放真实链接）</p>
+            </div>
+            <!-- 更多卡片会在这里 -->
+        </div>
+
+        <div class="mt-12 text-center text-gray-500 text-sm">
+            <p>使用方法：复制订阅链接 → 在 v2rayN / Nekobox / v2rayNG 中导入订阅</p>
+            <p class="mt-2">仓库地址: <a href="https://github.com/114dayfree/114dayfree" class="text-blue-400 hover:underline">114dayfree/114dayfree</a></p>
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(btn) {
+            const text = btn.parentElement.parentElement.querySelector('p.text-sm').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+                setTimeout(() => btn.innerHTML = original, 2000);
+            });
+        }
+
+        // 简单搜索功能
+        document.getElementById('search').addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            document.querySelectorAll('#nodes > div').forEach(card => {
+                card.style.display = card.textContent.toLowerCase().includes(term) ? 'block' : 'none';
+            });
+        });
+    </script>
+</body>
+</html>
