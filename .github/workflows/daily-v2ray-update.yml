@@ -24,22 +24,18 @@ jobs:
 
           API_KEY = os.environ.get("XAI_API_KEY")
           if not API_KEY:
-              print("❌ 错误：XAI_API_KEY 未设置！")
+              print("❌ XAI_API_KEY 未设置或为空")
               exit(1)
 
           HTML_FILE = "index.html"
 
-          system_prompt = """你是一个 V2Ray 节点采集与前端设计师。
-请搜索今天最新可靠的免费 V2Ray / VLESS / VMess / Trojan / Hysteria2 订阅链接。
-生成一个现代深色美观的完整 index.html（使用 Tailwind CSS CDN）。
-包含标题、更新时间、搜索框、卡片布局、一键复制按钮、响应式设计。
-只输出纯 HTML 代码（从 <!DOCTYPE html> 到 </html>），不要其他文字。"""
+          system_prompt = "你是一个 V2Ray 节点助手。请搜索今天最新免费 V2Ray / VLESS / VMess / Trojan 订阅链接。然后生成一个简单美观的深色 index.html 页面（用 Tailwind CSS），包含标题、更新时间、节点列表和一键复制按钮。只输出纯 HTML 代码，不要任何其他文字。"
 
-          user_prompt = f"今天是 {os.popen('date +%Y-%m-%d').read().strip()}，生成最新 V2Ray 节点页面。"
+          user_prompt = "今天日期是 " + os.popen('date +%Y-%m-%d').read().strip() + "，请生成最新 V2Ray 节点页面。"
 
           url = "https://api.x.ai/v1/chat/completions"
           headers = {
-              "Authorization": f"Bearer {API_KEY}",
+              "Authorization": "Bearer " + API_KEY,
               "Content-Type": "application/json"
           }
           data = {
@@ -49,7 +45,7 @@ jobs:
                   {"role": "user", "content": user_prompt}
               ],
               "temperature": 0.3,
-              "max_tokens": 10000
+              "max_tokens": 8000
           }
 
           req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
@@ -62,9 +58,9 @@ jobs:
 
           os.system('git config --global user.name "Grok Bot"')
           os.system('git config --global user.email "grok@bot.com"')
-          os.system(f'git add {HTML_FILE}')
-          os.system(f'git commit -m "🤖 Grok 自动更新 - $(date +%Y-%m-%d)" || echo "无变化"')
+          os.system('git add ' + HTML_FILE)
+          os.system('git commit -m "Grok 自动更新 V2Ray 节点 - $(date +%Y-%m-%d)" || echo "无变化"')
           os.system('git push')
 
-          print("✅ index.html 生成并推送成功！")
+          print("✅ index.html 已生成并推送成功")
           EOF
