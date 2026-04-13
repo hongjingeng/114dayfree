@@ -2,7 +2,7 @@ name: 每日8点自动更新 V2Ray 节点到 index.html
 
 on:
   schedule:
-    - cron: '0 0 * * *'      # 新加坡/香港时间早上 8 点
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
-      - name: 调用 Grok API 生成漂亮的 index.html
+      - name: 调用 Grok API 生成 index.html
         env:
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
         run: |
@@ -24,26 +24,18 @@ jobs:
 
           API_KEY = os.environ.get("XAI_API_KEY")
           if not API_KEY:
-              print("❌ 错误：XAI_API_KEY 未设置或为空！")
+              print("❌ 错误：XAI_API_KEY 未设置！")
               exit(1)
 
           HTML_FILE = "index.html"
 
-          system_prompt = """你是一个专业的 V2Ray 节点采集助手和现代前端设计师。
-请实时搜索今天（当前日期）最新、可靠、免费的 V2Ray / VLESS / VMess / Trojan / Hysteria2 等订阅链接。
-优先选择活跃的 GitHub 仓库。
-然后生成一个**美观、现代、深色模式**的完整 index.html 文件：
-- 使用 Tailwind CSS 通过 CDN
-- 深色背景 (#0f172a)，蓝色/紫色霓虹强调
-- 顶部大标题 + 最后更新时间
-- 搜索框（可实时过滤）
-- 卡片式布局，按协议分组
-- 每个节点显示备注、协议、订阅链接，并有“一键复制”按钮
-- 响应式设计，手机友好
-- 底部添加简单导入教程（v2rayN / Nekobox 等）
-只输出**纯净完整的 HTML 代码**（从 <!DOCTYPE html> 开始，到 </html> 结束），不要任何解释、markdown 或代码块标记。"""
+          system_prompt = """你是一个 V2Ray 节点采集与前端设计师。
+请搜索今天最新可靠的免费 V2Ray / VLESS / VMess / Trojan / Hysteria2 订阅链接。
+生成一个现代深色美观的完整 index.html（使用 Tailwind CSS CDN）。
+包含标题、更新时间、搜索框、卡片布局、一键复制按钮、响应式设计。
+只输出纯 HTML 代码（从 <!DOCTYPE html> 到 </html>），不要其他文字。"""
 
-          user_prompt = f"今天是 {os.popen('date +%Y-%m-%d').read().strip()}，请立即生成最新美观的 V2Ray 免费节点页面。"
+          user_prompt = f"今天是 {os.popen('date +%Y-%m-%d').read().strip()}，生成最新 V2Ray 节点页面。"
 
           url = "https://api.x.ai/v1/chat/completions"
           headers = {
@@ -51,13 +43,13 @@ jobs:
               "Content-Type": "application/json"
           }
           data = {
-              "model": "grok-4.20-0309-non-reasoning",   # ← 这是关键修复
+              "model": "grok-4.20-0309-non-reasoning",
               "messages": [
                   {"role": "system", "content": system_prompt},
                   {"role": "user", "content": user_prompt}
               ],
               "temperature": 0.3,
-              "max_tokens": 12000
+              "max_tokens": 10000
           }
 
           req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
@@ -68,12 +60,11 @@ jobs:
           with open(HTML_FILE, "w", encoding="utf-8") as f:
               f.write(html_content)
 
-          # 自动提交到 GitHub
           os.system('git config --global user.name "Grok Bot"')
           os.system('git config --global user.email "grok@bot.com"')
           os.system(f'git add {HTML_FILE}')
-          os.system(f'git commit -m "🤖 Grok 自动更新 V2Ray 节点 - $(date +%Y-%m-%d %H:%M)" || echo "无新变化"')
+          os.system(f'git commit -m "🤖 Grok 自动更新 - $(date +%Y-%m-%d)" || echo "无变化"')
           os.system('git push')
 
-          print("✅ index.html 已生成并成功推送！")
+          print("✅ index.html 生成并推送成功！")
           EOF
