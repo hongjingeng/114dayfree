@@ -2,7 +2,7 @@ name: 每日8点自动更新 V2Ray 节点到 index.html
 
 on:
   schedule:
-    - cron: '0 0 * * *'      # UTC 0点 = 新加坡/香港时间早上8点
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
-      - name: 调用 Grok API 生成 index.html 并覆盖
+      - name: 调用 Grok API 生成 index.html
         env:
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
         run: |
@@ -24,55 +24,42 @@ jobs:
 
           API_KEY = os.environ.get("XAI_API_KEY")
           if not API_KEY:
-              print("❌ 错误：XAI_API_KEY 未设置！")
+              print("❌ XAI_API_KEY 未设置")
               exit(1)
 
           HTML_FILE = "index.html"
 
-          # 更稳定的提示词（缩短以避免 token 问题）
-          system_prompt = """你是一个 V2Ray 节点采集专家和前端设计师。
-请搜索今天最新的免费 V2Ray / VLESS / VMess / Trojan / Hysteria2 订阅链接。
-生成一个现代深色模式、美观的完整 index.html 文件：
-- 使用 Tailwind CSS CDN
-- 深色背景、卡片布局
-- 标题 + 最后更新时间 + 搜索框
-- 节点按协议分组，一键复制按钮
-- 响应式、手机友好
-只输出纯 HTML 代码（从 <!DOCTYPE html> 到 </html>），不要任何其他文字。"""
+          # 使用和你 curl 完全一致的 endpoint 和模型
+          system_prompt = "你是一个 V2Ray 节点助手。请搜索今天最新免费的 V2Ray / VLESS / VMess / Trojan 订阅链接，生成一个简单美观的深色 HTML 页面，包含标题、更新时间、节点列表和一键复制按钮。只输出纯 HTML 代码，不要其他任何文字。"
 
-          user_prompt = f"今天是 {os.popen('date +%Y-%m-%d %H:%M').read().strip()}，请生成最新美观的 V2Ray 免费节点页面。"
+          user_prompt = "今天是 " + os.popen('date +%Y-%m-%d').read().strip() + "，请生成 V2Ray 节点页面。"
 
-          url = "https://api.x.ai/v1/chat/completions"
+          url = "https://api.x.ai/v1/responses"   # ← 改成和你 curl 一样的 endpoint
+
           headers = {
               "Authorization": f"Bearer {API_KEY}",
               "Content-Type": "application/json"
           }
+
           data = {
-              "model": "grok-4.20-non-reasoning",   # 尝试这个 alias（如果还是错再换下面注释的）
-              # "model": "grok-4.20-0309-non-reasoning",   # 如果上面失败，取消这行注释，注释上面一行
-              "messages": [
-                  {"role": "system", "content": system_prompt},
-                  {"role": "user", "content": user_prompt}
-              ],
-              "temperature": 0.3,
-              "max_tokens": 12000
-              # "tools": [{"type": "web_search"}]   # 先去掉 tools，减少 422 风险（Grok 内部仍可搜索）
+              "model": "grok-4.20-reasoning",     # ← 和你 curl 一样
+              "input": system_prompt + "\n\n" + user_prompt   # responses endpoint 用 input 字段
           }
 
           req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
+
           with urllib.request.urlopen(req) as response:
               result = json.loads(response.read().decode("utf-8"))
-              html_content = result["choices"][0]["message"]["content"].strip()
+              html_content = result.get("output", result.get("choices", [{}])[0].get("message", {}).get("content", "生成失败")).strip()
 
           with open(HTML_FILE, "w", encoding="utf-8") as f:
-              f.write(html_content)
+              f.write(html_content if html_content.startswith("<!DOCTYPE") else "<!DOCTYPE html><html><body>" + html_content + "</body></html>")
 
-          # Git 提交
           os.system('git config --global user.name "Grok Bot"')
           os.system('git config --global user.email "grok@bot.com"')
           os.system(f'git add {HTML_FILE}')
-          os.system(f'git commit -m "🤖 Grok 自动更新 V2Ray 节点 - $(date +%Y-%m-%d)" || echo "无变化，跳过提交"')
+          os.system(f'git commit -m "Grok 自动更新 V2Ray - $(date +%Y-%m-%d)" || echo "无变化"')
           os.system('git push')
 
-          print("✅ index.html 已成功生成并推送！")
+          print("✅ index.html 已生成并推送！")
           EOF
