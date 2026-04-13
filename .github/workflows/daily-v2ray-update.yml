@@ -1,4 +1,4 @@
-name: 每日8点用 NVIDIA 生成 V2Ray 节点页面
+name: 每日8点更新 V2Ray 节点页面
 
 on:
   schedule:
@@ -13,7 +13,7 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
-      - name: 用 NVIDIA 生成 index.html
+      - name: 生成并强制更新 index.html
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
         run: |
@@ -21,6 +21,7 @@ jobs:
           import os
           import json
           import urllib.request
+          from datetime import datetime
 
           API_KEY = os.environ.get("NVIDIA_API_KEY")
           if not API_KEY:
@@ -28,18 +29,37 @@ jobs:
               exit(1)
 
           HTML_FILE = "index.html"
+          now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+          # 可靠的订阅链接（2026-04-13 最新活跃）
+          subscriptions = """
+          <h2 class="text-2xl font-bold mt-10 mb-4 text-white">推荐订阅链接（直接导入）</h2>
+          <div class="space-y-4">
+            <div class="bg-slate-800 p-5 rounded-2xl">
+              <p class="text-blue-400 font-medium">All Protocols (推荐)</p>
+              <p class="text-sm text-gray-400 break-all">https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/all_sub.txt</p>
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl">
+              <p class="text-blue-400 font-medium">barry-far 全量配置（每15分钟更新）</p>
+              <p class="text-sm text-gray-400 break-all">https://raw.githubusercontent.com/barry-far/V2ray-Config/main/All_Configs_Sub.txt</p>
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl">
+              <p class="text-blue-400 font-medium">ebrasha 免费列表</p>
+              <p class="text-sm text-gray-400 break-all">https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/main/all_extracted_configs.txt</p>
+            </div>
+          </div>
+          """
+
+          system_prompt = f"""你是一个前端设计师。请生成一个完整、现代、深色模式的 index.html 文件，使用 Tailwind CSS CDN。
+页面标题：今日最新 V2Ray 免费节点
+必须包含：大标题、最后更新时间（{now}）、搜索框、卡片式布局、一键复制按钮。
+在页面中部加入上面提供的订阅链接部分。
+只输出纯净的完整 HTML 代码，从 <!DOCTYPE html> 开始到 </html> 结束，不要任何其他文字。"""
+
+          user_prompt = f"生成 V2Ray 节点页面，最后更新时间为 {now}"
 
           url = "https://integrate.api.nvidia.com/v1/chat/completions"
-
-          headers = {
-              "Authorization": f"Bearer {API_KEY}",
-              "Content-Type": "application/json"
-          }
-
-          # 极简稳定提示词
-          system_prompt = "你是一个前端设计师。请生成一个现代深色美观的完整 index.html 文件，使用 Tailwind CSS CDN。页面标题为 '今日最新 V2Ray 免费节点'，包含搜索框、卡片布局、一键复制按钮、最后更新时间。只输出纯净的 <!DOCTYPE html> ... </html> 完整代码，不要任何解释文字。"
-
-          user_prompt = "今天日期是 " + os.popen('date +%Y-%m-%d %H:%M').read().strip() + "，生成 V2Ray 节点页面。"
+          headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
 
           data = {
               "model": "nvidia/llama-3.1-nemotron-70b-instruct",
@@ -47,28 +67,25 @@ jobs:
                   {"role": "system", "content": system_prompt},
                   {"role": "user", "content": user_prompt}
               ],
-              "temperature": 0.2,
-              "max_tokens": 8000
+              "temperature": 0.3,
+              "max_tokens": 10000
           }
 
           req = urllib.request.Request(url, json.dumps(data).encode("utf-8"), headers=headers, method="POST")
-
           with urllib.request.urlopen(req) as response:
               result = json.loads(response.read().decode("utf-8"))
               html_content = result["choices"][0]["message"]["content"].strip()
 
-          # 确保是完整 HTML
-          if not html_content.startswith("<!DOCTYPE"):
-              html_content = "<!DOCTYPE html><html><body><pre>" + html_content + "</pre></body></html>"
-
+          # 强制写入文件（即使内容类似也覆盖）
           with open(HTML_FILE, "w", encoding="utf-8") as f:
               f.write(html_content)
 
+          # 强制 commit
           os.system('git config --global user.name "NVIDIA Bot"')
           os.system('git config --global user.email "nim@bot.com"')
           os.system(f'git add {HTML_FILE}')
-          os.system(f'git commit -m "🔄 NVIDIA 更新 V2Ray 页面 - $(date +%Y-%m-%d %H:%M)" || echo "文件无变化"')
+          os.system(f'git commit -m "🔄 更新 V2Ray 节点页面 - {now}"')
           os.system('git push')
 
-          print("✅ index.html 已尝试生成并推送")
+          print(f"✅ index.html 已强制更新，时间：{now}")
           EOF
